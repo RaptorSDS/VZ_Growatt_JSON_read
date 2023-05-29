@@ -4,6 +4,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 set -u
 set -e
 
+# Script: Growatt_JSON_exec.sh
+# Author: Tobias Baumann aka RaptorSDS
+# License: MIT
+# with help of OpenAI GPT-3.5 and VZlogger Group
+# idee by script for KOSTAL_Pico JSON VZlogger exec 
+
 # Function to display script usage
 usage() {
   echo "Usage: $0 <hostname> <reading1> <reading2> ..."
@@ -22,8 +28,8 @@ shift
 # Extract readings
 READINGS="$*"
 
+#build URL
 URL="http://${HOSTNAME}/status"
-
 #echo $URL
 
 #get json
