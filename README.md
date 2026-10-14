@@ -1,98 +1,197 @@
 # VZ_Growatt_JSON_read
-bash script for read json and insert into VZ Database
 
-need is a mod ShineStick_X or ShineStick_S 
-also possible D1 mini (ch340) and NodeMCU S32 (ch340)
+![Shell](https://img.shields.io/badge/shell-bash-4EAA25?logo=gnubash&logoColor=white)
+![Volkszähler](https://img.shields.io/badge/Volksz%C3%A4hler-Middleware-blue)
+![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)
 
-modded with 
-https://github.com/otti/Growatt_ShineWiFi-S
-==== Möglichkeit 1 CRON ====
+Bash-Skripte, die den JSON-Statusblock eines **Growatt-Wechselrichters** über einen umgeflashten WiFi-Stick auslesen und die Werte an die **[Volkszähler](https://volkszaehler.org)**-Datenbank übergeben.
 
-Bitte über <IP/status> einmal die JSON Datenblock abfragen und schauen welche Daten der WR bereitstellt 
+Zwei Varianten stehen zur Verfügung:
 
-<note>der Nachfolgende Script ist für Modbus v1.24 und einem Growatt 600TL-x Einphasig ausgelegt </note>
+| Variante | Skript | Funktionsweise |
+|---|---|---|
+| **1 – Cron** | `Growatt_JSON_read.sh` | Liest den Wechselrichter per Cron-Job aus und schreibt direkt per HTTP in die Middleware |
+| **2 – vzlogger exec** *(empfohlen)* | `growatt_json_exec.sh` | Wird vom `vzlogger` über das `exec`-Protokoll aufgerufen und gibt `Name = Wert` aus |
 
+---
 
-  * Als nächstes Abfragedatei erstellen
- 
-  - git clone <code>sudo git clone https://github.com/RaptorSDS/VZ_Growatt_JSON_read.git</code>
+## Inhalt
 
-  * Abfragedatei bearbeiten
-<code>sudo nano Growatt_JSON_read.sh</code>
+- [Voraussetzungen](#voraussetzungen)
+- [JSON-Daten prüfen](#json-daten-prüfen)
+- [Installation](#installation)
+- [Variante 1: Cron-Job](#variante-1-cron-job)
+- [Variante 2: vzlogger exec](#variante-2-vzlogger-exec)
+- [Lizenz](#lizenz)
 
-  * darin folgenden Inhalt hinzufügen/editieren
+---
 
-<note>Bitte IP , UUID und die Namen der Json Objekte an deine Gegebenheiten anpassen.</note>
+## Voraussetzungen
 
-Dieses Script sendet nur die aktuellen Zählerstand und zusätzlich die Leistung an die Middleware.\\
-Zeilen mit "#" sind auskommentiert und können bei Bedarf genutzt werden für Debug oder um einen weitere Kanäle hinzuzufügen.
-<note> aufgrund der langsamen auslesung vom Cron Job wie unten angegeben mit 1min Intervall ist die Darstellung des Zählerstandes nicht allzu gut </note>
+**Hardware**
 
-  * Datei Speichern und ausführbar machen
+- Growatt-Wechselrichter (getestet: **Growatt 600TL-X**, einphasig, Modbus v1.24)
+- Ein WiFi-Stick mit der Firmware **[otti/Growatt_ShineWiFi-S](https://github.com/otti/Growatt_ShineWiFi-S)**, z. B.:
+  - ShineWiFi-X oder ShineWiFi-S (umgeflasht)
+  - Wemos D1 mini (CH340)
+  - NodeMCU ESP32-S (CH340)
 
-   chmod +x Growatt_JSON_read.sh
+**Software**
 
-  * Datei zu CRON hinzufügen (hier als Beispiel Raspberry Pi mit 1 minuten Intervall)
+- Volkszähler-Installation (Middleware erreichbar)
+- `bash`, `curl`
+- Variante 1: `wget`
+- Variante 2: `jq` und `vzlogger`
 
-<code>*/1 * * * * /bin/bash /home/pi/Growatt_JSON_read.sh</code>
+```bash
+sudo apt install curl wget jq
+```
 
-Grundsätzlich aktuallisiert der Wifi-Stick alle 5 sek die JSON-Daten  
+---
 
-==== Möglichkeit 2 vzlogger exec ====
+## JSON-Daten prüfen
 
+Bevor du etwas konfigurierst, rufe einmal den JSON-Datenblock des Sticks im Browser oder per `curl` ab, um zu sehen, welche Werte dein Wechselrichter bereitstellt:
 
+```bash
+curl http://<IP-des-Sticks>/status
+```
 
-Bitte über <IP/status> einmal die JSON Datenblock abfragen und schauen welche Daten der WR bereitstellt 
+Typische Felder sind z. B. `InverterStatus`, `TotalGenerateEnergy`, `TodayGenerateEnergy` und `OutputPower`.
+Der Stick aktualisiert die JSON-Daten etwa **alle 5 Sekunden**.
 
-<note>der Nachfolgende Script ist für Modbus v1.24 und einem Growatt 600TL-x Einphasig ausgelegt </note>
+> [!NOTE]
+> Beide Skripte senden bzw. liefern nur Daten, wenn der Wechselrichter-Status **ungleich 0** ist (Wechselrichter betriebsbereit).
 
+---
 
-  * Als nächstes Abfragedatei erstellen
-    - git clone <code>sudo git clone https://github.com/RaptorSDS/VZ_Growatt_JSON_read.git</code>
+## Installation
 
-<note> In der Datei sind keine Anpassungen notwendig alle Notigen Optionen werden von extern zu angegeben . \\
-Folgende Optionen sind vorhanden ... exec.sh IP Reading1 Reading2 .... dabei werden alle Reading angenommen solange sie im JSON Datenblock vorhanden sind , der script beinhaltet eine Schutz nur wen der WR Status 1 = Betriebsbereit gesetzt hat werden daten ausgegebnen
-</note>
+```bash
+git clone https://github.com/RaptorSDS/VZ_Growatt_JSON_read.git
+cd VZ_Growatt_JSON_read
+chmod +x Growatt_JSON_read.sh growatt_json_exec.sh
+```
 
-  * Datei Speichern und ausführbar machen
+---
 
-   chmod +x Growatt_JSON_exec.sh
-   
-  * Die Datei kan jetzt an einen Bekannt Ort kopiert werden bsp /etc/growatt/
+## Variante 1: Cron-Job
 
-  * Als nächstes die Kanäle im Frontend erstellen
+Das Skript liest den Wechselrichter aus und schreibt den **Gesamtzählerstand** sowie die **aktuelle Leistung** per HTTP-Aufruf direkt in die Middleware.
 
-  * Folgende vzlogger config erstellen ändern
-<code>
+### 1. Skript anpassen
+
+```bash
+nano Growatt_JSON_read.sh
+```
+
+Passe folgende Variablen an deine Umgebung an:
+
+| Variable | Bedeutung |
+|---|---|
+| `host_pv` | IP-Adresse des WiFi-Sticks |
+| `host_db` | IP-Adresse des Volkszähler-Servers |
+| `UUID1` | Kanal-UUID für den Zählerstand (`TotalGenerateEnergy`) |
+| `UUID2` | Kanal-UUID für die Leistung (`OutputPower`) |
+
+Bei Bedarf können auch die Namen der JSON-Objekte angepasst werden.
+Mit `#` auskommentierte Zeilen dienen zum Debuggen oder als Vorlage für weitere Kanäle (z. B. `TodayGenerateEnergy`).
+
+### 2. Cron-Job einrichten
+
+```bash
+crontab -e
+```
+
+Beispiel für einen Raspberry Pi mit einem Intervall von 1 Minute:
+
+```cron
+*/1 * * * * /bin/bash /home/pi/VZ_Growatt_JSON_read/Growatt_JSON_read.sh
+```
+
+> [!TIP]
+> Durch das minimale Cron-Intervall von 1 Minute ist die Darstellung des Zählerstands eher grob. Für eine feinere Auflösung ist [Variante 2](#variante-2-vzlogger-exec) besser geeignet.
+
+---
+
+## Variante 2: vzlogger exec
+
+In diesem Skript sind **keine Anpassungen** nötig – alle Optionen werden beim Aufruf übergeben:
+
+```text
+growatt_json_exec.sh <IP> <Reading1> [Reading2] ...
+```
+
+Es werden alle Readings ausgegeben, die im JSON-Datenblock vorhanden sind.
+Beispielausgabe:
+
+```console
+$ ./growatt_json_exec.sh 192.168.1.50 TotalGenerateEnergy OutputPower
+TotalGenerateEnergy = 1234.5
+OutputPower = 312.4
+```
+
+### 1. Skript an einen festen Ort kopieren
+
+```bash
+sudo mkdir -p /etc/growatt
+sudo cp growatt_json_exec.sh /etc/growatt/
+```
+
+### 2. Kanäle im Volkszähler-Frontend anlegen
+
+Lege für jedes Reading einen Kanal an und notiere dir die jeweilige UUID.
+
+### 3. vzlogger konfigurieren
+
+Füge in der `vzlogger.conf` unter `meters` folgenden Block hinzu und passe IP und UUIDs an:
+
+```json
 {
-      "enabled": true,
-      "allowskip": true,
-      "interval": 60,
-      "aggtime": -1,
-      "aggfixedinterval": false,
-      "channels": [
-        {
-          "api": "volkszaehler",
-          "uuid": "e4f6a700-xxxxx",
-          "identifier": "TotalGenerateEnergy",
-          "middleware": "http://localhost/middleware.php",
-          "aggmode": "none",
-          "duplicates": 3600
-        },
-        {
-          "api": "volkszaehler",
-          "uuid": "35edd970-xxxxx",
-          "identifier": "OutputPower",
-          "middleware": "http://localhost/middleware.php",
-          "aggmode": "avg",
-          "duplicates": 0
-        }
-      ],
-      "protocol": "exec",
-      "command": "/etc/growatt/growatt_json_exec.sh 192.xxxx TotalGenerateEnergy OutputPower",
-      "format": "$i = $v"
+  "enabled": true,
+  "allowskip": true,
+  "interval": 60,
+  "aggtime": -1,
+  "aggfixedinterval": false,
+  "protocol": "exec",
+  "command": "/etc/growatt/growatt_json_exec.sh 192.168.x.xx TotalGenerateEnergy OutputPower",
+  "format": "$i = $v",
+  "channels": [
+    {
+      "api": "volkszaehler",
+      "uuid": "e4f6a700-xxxxx",
+      "identifier": "TotalGenerateEnergy",
+      "middleware": "http://localhost/middleware.php",
+      "aggmode": "none",
+      "duplicates": 3600
     },
- </code>
-<note>Die Config ist so eingestellt das sie alle 60s den WR abfragt und an die DB Übergibt , Der Gesmt Zählerstand wir auf Duplikate kontrolliert und spätesten falls kein neuer Wert vorliegt nach 3600s erneut in die DB geschrieben</note>
+    {
+      "api": "volkszaehler",
+      "uuid": "35edd970-xxxxx",
+      "identifier": "OutputPower",
+      "middleware": "http://localhost/middleware.php",
+      "aggmode": "avg",
+      "duplicates": 0
+    }
+  ]
+}
+```
 
-  * vzlogger neu starten
+| Einstellung | Wirkung |
+|---|---|
+| `interval: 60` | Der Wechselrichter wird alle 60 s abgefragt |
+| `duplicates: 3600` | Der Zählerstand wird auf Duplikate geprüft und spätestens nach 3600 s erneut geschrieben, auch ohne neuen Wert |
+| `identifier` | Muss exakt dem Namen des Readings im JSON entsprechen |
+
+### 4. vzlogger neu starten
+
+```bash
+sudo systemctl restart vzlogger
+```
+
+---
+
+## Lizenz
+
+Veröffentlicht unter der [MIT-Lizenz](LICENSE).
+© 2023 Tobias Baumann aka **RaptorSDS**
